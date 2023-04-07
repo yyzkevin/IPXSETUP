@@ -118,7 +118,7 @@ void InitNetwork (void)
           packets[i].ecb.fAddress[1] = FP_SEG(&packets[i].ipx);
           packets[i].ecb.fSize = sizeof(packet_t)-sizeof(ECB);
 
-          ListenForPacket (&packets[i].ecb);
+	  ListenForPacket (&packets[i].ecb);
      }
 
 //
@@ -131,7 +131,7 @@ void InitNetwork (void)
      packets[0].ecb.fAddress[0] = FP_OFF(&packets[0].ipx);
      packets[0].ecb.fAddress[1] = FP_SEG(&packets[0].ipx);
      for (j=0 ; j<4 ; j++)
-          packets[0].ipx.dNetwork[j] = localadr.network[j];
+	  packets[0].ipx.dNetwork[j] = localadr.network[j];
      packets[0].ipx.dSocket[0] = socketid&255;
      packets[0].ipx.dSocket[1] = socketid>>8;
      packets[0].ecb.f2Address[0] = FP_OFF(&doomcom.data);
@@ -140,10 +140,15 @@ void InitNetwork (void)
 // known local node at 0
      for (i=0 ; i<6 ; i++)
 	  nodeadr[0].node[i] = localadr.node[i];
+     for(i=0;i<4;i++)
+	nodeadr[0].network[i] = localadr.network[i];
 
 // broadcast node at MAXNETNODES
      for (j=0 ; j<6 ; j++)
-          nodeadr[MAXNETNODES].node[j] = 0xff;
+	  nodeadr[MAXNETNODES].node[j] = 0xff;
+     for (j=0 ; j<4 ; j++)
+	nodeadr[MAXNETNODES].network[j]=localadr.network[j];
+
 }
 
 
@@ -171,7 +176,7 @@ void ShutdownNetwork (void)
 ==============
 */
 
-void SendPacket (int destination)
+void SendPacket (int destination,unsigned long destnet)
 {
      int             j;
 
@@ -179,10 +184,27 @@ void SendPacket (int destination)
      packets[0].time = localtime;
 
 // set the address
-          for (j=0 ; j<6 ; j++)
-               packets[0].ipx.dNode[j] = 
+	  for (j=0 ; j<6 ; j++)
+	       packets[0].ipx.dNode[j] =
 packets[0].ecb.ImmediateAddress[j] =
-               nodeadr[destination].node[j];
+	       nodeadr[destination].node[j];
+
+	for(j=0;j<6;j++) {
+		packets[0].ecb.ImmediateAddress[j]=0xFF;
+	}
+
+	if(destnet) {
+		packets[0].ipx.dNetwork[3] = (destnet >> 0) & 0xFF;
+		packets[0].ipx.dNetwork[2] = (destnet >> 8) & 0xFF;
+		packets[0].ipx.dNetwork[1] = (destnet >> 16) & 0xFF;
+		packets[0].ipx.dNetwork[0] = (destnet >> 24) & 0xFF;
+	}
+	else {
+		for(j=0;j<4;j++) {
+			packets[0].ipx.dNetwork[j] = nodeadr[destination].network[j];
+		}
+	}
+
 
 // set the length (ipx + time + datalength)
      packets[0].ecb.fSize = sizeof(IPXPacket) + 4;
@@ -194,13 +216,13 @@ packets[0].ecb.ImmediateAddress[j] =
      _BX = 3;
      IPX();
      if(_AL)
-          Error("SendPacket: 0x%x", _AL);
+	  Error("SendPacket: 0x%x", _AL);
 
      while(packets[0].ecb.InUseFlag != 0)
      {
-          // IPX Relinquish Control - polled drivers MUST have this here!
-          _BX = 10;
-          IPX();
+	  // IPX Relinquish Control - polled drivers MUST have this here!
+	  _BX = 10;
+	  IPX();
      }
 }
 
@@ -220,75 +242,67 @@ unsigned short ShortSwap (unsigned short i)
 ==============
 */
 
-int GetPacket (void)
-{
-     int             packetnum;
-     int             i, j;
-     long           besttic;
-     packet_t       *packet;
+int GetPacket (void) {
+	int             packetnum;
+	int             i, j;
+	long           besttic;
+	packet_t       *packet;
 
-// if multiple packets are waiting, return them in order by time
+	// if multiple packets are waiting, return them in order by time
 
-     besttic = MAXLONG;
-     packetnum = -1;
-     doomcom.remotenode = -1;
+	besttic = MAXLONG;
+	packetnum = -1;
+	doomcom.remotenode = -1;
 
-     for ( i = 1 ; i < NUMPACKETS ; i++)
-     {
-          if (packets[i].ecb.InUseFlag)
-          {
-               continue;
-          }
+	for ( i = 1 ; i < NUMPACKETS ; i++) {
+		if(packets[i].ecb.InUseFlag) {
+			continue;
+		}
+		if (packets[i].time < besttic) {
+			besttic = packets[i].time;
+			packetnum = i;
+		}
+	}
 
-          if (packets[i].time < besttic)
-          {
-               besttic = packets[i].time;
-               packetnum = i;
-          }
-     }
+	if (besttic == MAXLONG) {
+		return 0;                           // no packets
+	}
+	packet = &packets[packetnum];
 
-     if (besttic == MAXLONG)
-          return 0;                           // no packets
+	if (besttic == -1 && localtime != -1) {
+		ListenForPacket (&packet->ecb);
+		return 0;            	// setup broadcast from other game
+	}
 
-     packet = &packets[packetnum];
+	remotetime = besttic;
 
-     if (besttic == -1 && localtime != -1)
-     {
-          ListenForPacket (&packet->ecb);
-	  return 0;            	// setup broadcast from other game
-     }
+	//
+	// got a good packet
+	//
+	if (packet->ecb.CompletionCode) {
+		Error ("GetPacket: ecb.ComletionCode = 0x%x",packet->ecb.CompletionCode);
+	}
+	// set remoteadr to the sender of the packet
+	memcpy (&remoteadr, packet->ipx.sNetwork, sizeof(remoteadr));
+	for (i=0 ; i<doomcom.numnodes ; i++) {
+		if (!memcmp(&remoteadr, &nodeadr[i], sizeof(remoteadr))) break;
+	}
+	if (i < doomcom.numnodes) {
+		doomcom.remotenode = i;
+	}
+	else {
+		if (localtime != -1) {    // this really shouldn't happen
+			ListenForPacket (&packet->ecb);
+			return 0;
+		}
+	}
+	// copy out the data
+	doomcom.datalength = ShortSwap(packet->ipx.PacketLength) - 38;
+	memcpy (&doomcom.data, &packet->data, doomcom.datalength);
 
-     remotetime = besttic;
+	// repost the ECB
+	ListenForPacket (&packet->ecb);
 
-//
-// got a good packet
-//
-     if (packet->ecb.CompletionCode)
-	  Error ("GetPacket: ecb.ComletionCode = 0x%x",packet->ecb.CompletionCode);
-
-// set remoteadr to the sender of the packet
-     memcpy (&remoteadr, packet->ipx.sNode, sizeof(remoteadr));
-     for (i=0 ; i<doomcom.numnodes ; i++)
-          if (!memcmp(&remoteadr, &nodeadr[i], sizeof(remoteadr)))
-               break;
-     if (i < doomcom.numnodes)
-          doomcom.remotenode = i;
-     else
-     {
-	  if (localtime != -1)
-          {    // this really shouldn't happen
-               ListenForPacket (&packet->ecb);
-               return 0;
-          }
-     }
-
-// copy out the data
-     doomcom.datalength = ShortSwap(packet->ipx.PacketLength) - 38;
-     memcpy (&doomcom.data, &packet->data, doomcom.datalength);
-
-// repost the ECB
-     ListenForPacket (&packet->ecb);
-
-     return 1;
+	return 1;
 }
 

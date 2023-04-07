@@ -53,6 +53,7 @@ typedef struct
 
 typedef struct
 {
+     BYTE    network[4];             /* high-low */
      BYTE    node[6];                /* high-low */
 } nodeadr_t;
 
@@ -109,7 +110,7 @@ void Error (char *error, ...);
 
 void InitNetwork (void);
 void ShutdownNetwork (void);
-void SendPacket (int destination);
+void SendPacket (int destination,unsigned long destnet);
 int GetPacket (void);
 int CheckParm (char *check);
 
