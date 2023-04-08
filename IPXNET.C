@@ -78,7 +78,7 @@ void LookupNets() {
 int OpenSocket(short socketNumber)
 {
      _DX = socketNumber;
-     _BX = 0;
+	 _BX = 0;
      _AL = 0;
      IPX();
      if(_AL)
@@ -91,7 +91,7 @@ void CloseSocket(short socketNumber)
 {
      _DX = socketNumber;
      _BX = 1;
-     IPX();
+	 IPX();
 }
 
 void ListenForPacket(ECB *ecb)
@@ -130,7 +130,7 @@ void InitNetwork (void)
 //
 // get IPX function address
 //
-     _AX = 0x7a00;
+	 _AX = 0x7a00;
 	 geninterrupt(0x2f);
      if(_AL != 0xff)
 	  Error ("IPX not detected\n");
@@ -169,7 +169,7 @@ void InitNetwork (void)
      packets[0].ecb.FragmentCount = 2;
      packets[0].ecb.fAddress[0] = FP_OFF(&packets[0].ipx);
      packets[0].ecb.fAddress[1] = FP_SEG(&packets[0].ipx);
-     for (j=0 ; j<4 ; j++)
+	 for (j=0 ; j<4 ; j++)
 	  packets[0].ipx.dNetwork[j] = localadr.network[j];
      packets[0].ipx.dSocket[0] = socketid&255;
      packets[0].ipx.dSocket[1] = socketid>>8;
@@ -320,6 +320,22 @@ int GetPacket (void) {
 	if (packet->ecb.CompletionCode) {
 		Error ("GetPacket: ecb.ComletionCode = 0x%x",packet->ecb.CompletionCode);
 	}
+
+	//ensure if it is from a network we are interested in
+	if(memcmp(packet->ipx.sNetwork,&localadr.network,4)) {
+		for(i=0;i<8;i++) {
+			if(!memcmp(&networks[i].network,&packet->ipx.sNetwork,4)) {
+					break;
+			}
+		}
+		if(i==8) {
+			ListenForPacket (&packet->ecb);
+			return 0;
+		}
+	}
+
+
+
 	// set remoteadr to the sender of the packet
 	memcpy (&remoteadr, packet->ipx.sNetwork, sizeof(remoteadr));
 	for (i=0 ; i<doomcom.numnodes ; i++) {
