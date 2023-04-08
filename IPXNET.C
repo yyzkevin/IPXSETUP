@@ -215,45 +215,44 @@ void ShutdownNetwork (void)
 ==============
 */
 
-void SendPacket (int destination,unsigned long destnet)
-{
-     int             j;
+void SendPacket (int destination,char *destnet) {
+	int             j,i;
 
-// set the time
-     packets[0].time = localtime;
+	// set the time
+	packets[0].time = localtime;
 
-// set the address
-	  for (j=0 ; j<6 ; j++)
-	       packets[0].ipx.dNode[j] =
-packets[0].ecb.ImmediateAddress[j] =
-	       nodeadr[destination].node[j];
-
-	for(j=0;j<6;j++) {
-		packets[0].ecb.ImmediateAddress[j]=0xFF;
-	}
-
+	// set the address
+	memcpy(&packets[0].ipx.dNode,nodeadr[destination].node,6);
 	if(destnet) {
-		packets[0].ipx.dNetwork[3] = (destnet >> 0) & 0xFF;
-		packets[0].ipx.dNetwork[2] = (destnet >> 8) & 0xFF;
-		packets[0].ipx.dNetwork[1] = (destnet >> 16) & 0xFF;
-		packets[0].ipx.dNetwork[0] = (destnet >> 24) & 0xFF;
+		memcpy(&packets[0].ipx.dNetwork,destnet,4);
 	}
 	else {
-		for(j=0;j<4;j++) {
-			packets[0].ipx.dNetwork[j] = nodeadr[destination].network[j];
+		memcpy(&packets[0].ipx.dNetwork,nodeadr[destination].network,4);
+	}
+
+	if(memcmp(&packets[0].ipx.dNetwork,&localadr.network,4)) {
+		memset(&packets[0].ecb.ImmediateAddress,0xFF,6);//fallback
+		for(i=0;i<8;i++) {
+			if(!memcmp(&networks[i].network,&packets[0].ipx.dNetwork,4)) {
+					memcpy(&packets[0].ecb.ImmediateAddress,&networks[i].immaddr,6);
+					break;
+			}
 		}
+	}
+	else {//for localnet
+		memcpy(&packets[0].ecb.ImmediateAddress,nodeadr[destination].node,6);
 	}
 
 
 // set the length (ipx + time + datalength)
-     packets[0].ecb.fSize = sizeof(IPXPacket) + 4;
-     packets[0].ecb.f2Size = doomcom.datalength + 4;
+	 packets[0].ecb.fSize = sizeof(IPXPacket) + 4;
+	 packets[0].ecb.f2Size = doomcom.datalength + 4;
 
 // send the packet
-     _SI = FP_OFF(&packets[0]);
-     _ES = FP_SEG(&packets[0]);
-     _BX = 3;
-     IPX();
+	 _SI = FP_OFF(&packets[0]);
+	 _ES = FP_SEG(&packets[0]);
+	 _BX = 3;
+	 IPX();
      if(_AL)
 	  Error("SendPacket: 0x%x", _AL);
 

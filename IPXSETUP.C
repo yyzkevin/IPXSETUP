@@ -216,8 +216,14 @@ void LookForNodes (void) {
 
 		memcpy (&doomcom.data, &nodesetup[0], sizeof(*setup));
 
-		SendPacket (MAXNETNODES,0x123);     // send to all
-		SendPacket (MAXNETNODES,0x416);     // send to all
+		SendPacket (MAXNETNODES,NULL);     // send to all
+		for(i=0;i<8;i++) {
+			if(memcmp(&networks[i].network,"\0\0\0\0",4)) {
+					SendPacket (MAXNETNODES,(char *)&networks[i].network);     // send to all
+			}
+		}
+
+//		SendPacket (MAXNETNODES,0x416);     // send to all
 
 	} while (1);
 

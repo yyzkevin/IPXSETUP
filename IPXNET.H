@@ -118,7 +118,7 @@ void Error (char *error, ...);
 
 void InitNetwork (void);
 void ShutdownNetwork (void);
-void SendPacket (int destination,unsigned long destnet);
+void SendPacket (int destination,char *destnet);
 void LookupNets(void);
 int GetPacket (void);
 int CheckParm (char *check);
