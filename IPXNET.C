@@ -27,6 +27,10 @@ nodeadr_t      remoteadr;               // set by each GetPacket
 
 localadr_t          localadr;           // set at startup
 
+unsigned char req[12];
+unsigned char resp[256];
+
+
 extern int socketid;
 
 void far (*IPX)(void);
@@ -36,6 +40,41 @@ long           remotetime;
 
 //===========================================================================
 
+void LookupNets() {
+	unsigned int x;
+	printf("Checking Network Rechability:\n");
+	printf("Local Network:%02x%02x%02x%02x\n",localadr.network[0],localadr.network[1],localadr.network[2],localadr.network[3]);
+	for(x=0;x<8;x++) {
+		if(!memcmp(&networks[x].network,&localadr.network,4)) {
+			memset(&networks[x],0,sizeof(networks[x]));
+			continue;
+		}
+		if(networks[x].network[0]==0 && networks[x].network[1]==0 && networks[x].network[2]==0 && networks[x].network[3]==0) continue;
+		printf("Checking %02x%02x%02x%02x...",networks[x].network[0],networks[x].network[1],networks[x].network[2],networks[x].network[3]);
+
+		memcpy(&req[0],&networks[x].network[0],4);
+		memset(&req[4],0xFF,8);//destination node and socket
+
+		_ES = FP_SEG(&req);
+		_SI = FP_OFF(&req);
+		_DI = FP_OFF(&networks[x].immaddr);
+		_BX = 2;
+		_AL = 0;
+		asm push bp;
+		IPX();
+		asm pop bp;
+		if(_AL) {
+			memset(&networks[x],0,sizeof(networks[x]));
+			printf("unreachable.\n");
+		}
+		else {
+			printf("ok (%u)\n",_CX);//_CX is transport time (1/18th seconds per 576 bytes)
+		}
+	}
+	printf("\n\n");
+}
+
+
 int OpenSocket(short socketNumber)
 {
      _DX = socketNumber;
@@ -44,7 +83,7 @@ int OpenSocket(short socketNumber)
      IPX();
      if(_AL)
 	  Error ("OpenSocket: 0x%x", _AL);
-     return _DX;
+	 return _DX;
 }
 
 
@@ -60,7 +99,7 @@ void ListenForPacket(ECB *ecb)
      _SI = FP_OFF(ecb);
      _ES = FP_SEG(ecb);
      _BX = 4;
-     IPX();
+	 IPX();
      if(_AL)
           Error ("ListenForPacket: 0x%x", _AL);
 }
@@ -68,10 +107,10 @@ void ListenForPacket(ECB *ecb)
 
 void GetLocalAddress (void)
 {
-     _SI = FP_OFF(&localadr);
-     _ES = FP_SEG(&localadr);
-     _BX = 9;
-     IPX();
+	 _SI = FP_OFF(&localadr);
+	 _ES = FP_SEG(&localadr);
+	 _BX = 9;
+	 IPX();
 }
 
 
@@ -92,7 +131,7 @@ void InitNetwork (void)
 // get IPX function address
 //
      _AX = 0x7a00;
-     geninterrupt(0x2f);
+	 geninterrupt(0x2f);
      if(_AL != 0xff)
 	  Error ("IPX not detected\n");
      IPX = MK_FP(_ES, _DI);

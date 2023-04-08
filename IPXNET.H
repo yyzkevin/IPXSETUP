@@ -47,20 +47,26 @@ typedef struct IPXPacketStructure
 
 typedef struct
 {
-     BYTE    network[4];             /* high-low */
-     BYTE    node[6];                /* high-low */
+	 BYTE    network[4];             /* high-low */
+	 BYTE    node[6];                /* high-low */
 } localadr_t;
 
 typedef struct
 {
-     BYTE    network[4];             /* high-low */
-     BYTE    node[6];                /* high-low */
+	 BYTE    network[4];             /* high-low */
+	 BYTE    node[6];                /* high-low */
 } nodeadr_t;
+
+typedef struct {
+	BYTE network[4];
+	BYTE immaddr[6];
+} network_t;
+
 
 typedef struct ECBStructure
 {
      WORD    Link[2];                /* offset-segment */
-     WORD    ESRAddress[2];          /* offset-segment */
+	 WORD    ESRAddress[2];          /* offset-segment */
      BYTE    InUseFlag;
      BYTE    CompletionCode;
      WORD    ECBSocket;              /* high-low */
@@ -72,7 +78,7 @@ typedef struct ECBStructure
      WORD    fAddress[2];            /* offset-segment */
      WORD    fSize;                  /* low-high */
 
-     WORD    f2Address[2];            /* offset-segment */
+	 WORD    f2Address[2];            /* offset-segment */
      WORD    f2Size;                  /* low-high */
 } ECB;
 
@@ -83,7 +89,7 @@ typedef struct ECBStructure
 typedef struct
 {
      ECB             ecb;
-     IPXPacket       ipx;
+	 IPXPacket       ipx;
 
      long           time;
      doomdata_t          data;
@@ -94,6 +100,8 @@ extern    doomcom_t doomcom;
 extern    int            gameid;
 
 extern    nodeadr_t nodeadr[MAXNETNODES+1];
+extern    network_t networks[8];
+
 extern    int            localnodenum;
 
 extern    long           localtime;          // for time stamp in packets
@@ -111,6 +119,7 @@ void Error (char *error, ...);
 void InitNetwork (void);
 void ShutdownNetwork (void);
 void SendPacket (int destination,unsigned long destnet);
+void LookupNets(void);
 int GetPacket (void);
 int CheckParm (char *check);
 

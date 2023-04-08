@@ -24,6 +24,8 @@ char **myargv;
 setupdata_t    nodesetup[MAXNETNODES];
 
 
+network_t	networks[8];
+
 /*
 =================
 =
@@ -68,7 +70,7 @@ int CheckParm(char *parm)
 
 	 for(i = 1; i < myargc; i++)
 		  if(stricmp(parm, myargv[i]) == 0)
-               return i;
+			   return i;
 
      return 0;
      }
@@ -92,7 +94,7 @@ void interrupt NetISR (void)
 	 else if (doomcom.command == CMD_GET)
      {
           GetPacket ();
-     }
+	 }
 }
 
 
@@ -324,6 +326,8 @@ void FindResponseFile (void)
 void main (void) {
 	int  i;
 	unsigned char far *vector;
+	char *t;
+	unsigned long x;
 
 	//
 	// determine game parameters
@@ -337,70 +341,83 @@ void main (void) {
 	doomcom.skill = 2;
 	doomcom.deathmatch = 0;
 
-	 printf("\n"
+	printf("\n"
 			 "-----------------------------\n"
-	 #ifdef DOOM2
+	#ifdef DOOM2
 			 STR_DOOMNETDRV"\n"
-	 #else
+	#else
 			 "DOOM NETWORK DEVICE DRIVER\n"
-	 #endif
+	#endif
 			 "v1.22\n"
 			 "-----------------------------\n");
 
-	 myargc = _argc;
-	 myargv = _argv;
-	 FindResponseFile();
+	myargc = _argc;
+	myargv = _argv;
+	FindResponseFile();
 
-	 if((i = CheckParm("-nodes")) != 0)
-		  numnetnodes = atoi(myargv[i+1]);
+	memset(&networks,0,sizeof(networks));
+	if((i = CheckParm("-nets")) != 0) {
+		t = strtok(myargv[i+1],",");
+		i=0;
+		while(t != NULL && i < 8) {
+			x = (unsigned long)strtol(t,NULL,16);
+			networks[i].network[3]=(x >> 0) & 0xFF;
+			networks[i].network[2]=(x >> 8) & 0xFF;
+			networks[i].network[1]=(x >> 16) & 0xFF;
+			networks[i].network[0]=(x >> 24) & 0xFF;
+			t=strtok(NULL,",");
+			i++;
+		}
+	}
 
-	 if((i = CheckParm("-vector")) != 0)
-		  {
-		  doomcom.intnum = sscanf ("0x%x",myargv[i+1]);
-		  vector = *(char far * far *)(doomcom.intnum*4);
-		  if(vector != NULL && *vector != 0xcf)
-			   {
-		   printf(STR_VECTSPEC"\n", doomcom.intnum);
-			   exit(-1);
-			   }
-		  }
-	 else
-		  {
-		  for(doomcom.intnum = 0x60 ; doomcom.intnum <= 0x66 ;
-doomcom.intnum++)
-			   {
-			   vector = *(char far * far *)(doomcom.intnum*4);
-			   if(vector == NULL || *vector == 0xcf)
-					break;
-			   }
-		  if(doomcom.intnum == 0x67)
-			   {
-		   printf(STR_NONULL"\n");
-		   exit(-1);
-		   }
-	  }
-	 printf(STR_COMMVECT"\n",doomcom.intnum);
+	if((i = CheckParm("-nodes")) != 0) {
+		numnetnodes = atoi(myargv[i+1]);
+	}
+	if((i = CheckParm("-vector")) != 0) {
+		doomcom.intnum = sscanf ("0x%x",myargv[i+1]);
+		vector = *(char far * far *)(doomcom.intnum*4);
+		if(vector != NULL && *vector != 0xcf) {
+			printf(STR_VECTSPEC"\n", doomcom.intnum);
+			exit(-1);
+		}
+	}
+	else {
+		for(doomcom.intnum = 0x60 ; doomcom.intnum <= 0x66 ; doomcom.intnum++) {
+			vector = *(char far * far *)(doomcom.intnum*4);
+			if(vector == NULL || *vector == 0xcf) break;
+		}
+		if(doomcom.intnum == 0x67) {
+			printf(STR_NONULL"\n");
+			exit(-1);
+		}
+	}
+	printf(STR_COMMVECT"\n",doomcom.intnum);
 
-	 if((i = CheckParm("-port")) != 0)
-	  {
-	  socketid = atoi (myargv[i+1]);
-	  printf (STR_USEALT"\n", socketid);
-		  }
+	if((i = CheckParm("-port")) != 0) {
+		socketid = atoi (myargv[i+1]);
+		printf (STR_USEALT"\n", socketid);
+	}
 
-	 InitNetwork ();
+	InitNetwork ();
 
-	 LookForNodes ();
+	/*
+	Looking up the networks only once currently.  This means if
+	network topology changes during a match communication may be lost.
+	Looking up the local target on every sendpacket is not worth the overhead for now.
+	*/
+	LookupNets();
 
-	 localtime = 0;
+	LookForNodes ();
 
-	 LaunchDOOM ();
+	localtime = 0;
 
-	 ShutdownNetwork ();
+	LaunchDOOM ();
 
-	 if (vectorishooked)
-		  setvect (doomcom.intnum,olddoomvect);
+	ShutdownNetwork ();
 
-	 exit(0);
-	 }
+	if(vectorishooked) setvect (doomcom.intnum,olddoomvect);
+
+	exit(0);
+}
 
 
