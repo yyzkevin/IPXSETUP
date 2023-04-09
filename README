@@ -1,1 +1,44 @@
-This is the source for the DOOM ipx network driver.
+DOOM IPX NETWORK DRIVER
+
+USAGE
+-----
+
+-NETS		Comma seperated hexidecimal list of remote ipx networks discover players. 
+			Additional notes on this argument listed below.
+			default: only broadcasts/lists on your local network.
+			example: -nets 0x2188,0x2109
+			
+-PORT 		Sets the port(socket) from which to play DOOM multiplayer on the network. 
+			By setting a different port, more than one group of players can play DOOM 
+			on a single network. 
+			default: 0x869C
+			example: -port 0x869C		
+
+-NODES 		Starts DOOM as a network game and sets the number of players who are going to play. 
+			If you don't specify the number of nodes.
+			default:
+			example: -nodes 2
+
+			
+
+NOTES ON -NETS
+--------------
+By Default ipxsetup will only broadcast game discover packets to your local network.  Once a match is
+made each player will transmit unicast packets to each other player, again limited to your local network.
+
+The nets command allows the user to specify additional networks to broadcast/listen on for game discovery.
+This does not pose any risk to the network as packets are only broadcast once per second and only during 
+matchmaking.  Once a a match is made each player will send unicast packets addressed to the local and/or 
+remote players.
+
+To minimize overhead,  the nearest router for each remote network is only discovered once at startup. This
+means if your network topology changes during an active game, connectivity may be lost.
+
+
+CREDITS/LICENSE
+---------------
+
+Origional code is the source for the DOOM ipx network driver released by idsoftware (revised 1996 version).
+
+
+
