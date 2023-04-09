@@ -4,20 +4,20 @@ USAGE
 -----
 
 -NETS		Comma seperated hexidecimal list of remote ipx networks discover players. 
-			Additional notes on this argument listed below.
-			default: only broadcasts/lists on your local network.
-			example: -nets 0x2188,0x2109
+		Additional notes on this argument listed below.
+		default: only broadcasts/lists on your local network.
+		example: -nets 0x2188,0x2109
 			
 -PORT 		Sets the port(socket) from which to play DOOM multiplayer on the network. 
-			By setting a different port, more than one group of players can play DOOM 
-			on a single network. 
-			default: 0x869C
-			example: -port 0x869C		
+		By setting a different port, more than one group of players can play DOOM 
+		on a single network. 
+		default: 0x869C
+		example: -port 0x869C		
 
 -NODES 		Starts DOOM as a network game and sets the number of players who are going to play. 
-			If you don't specify the number of nodes.
-			default:
-			example: -nodes 2
+		If you don't specify the number of nodes.
+		default:
+		example: -nodes 2
 
 			
 
